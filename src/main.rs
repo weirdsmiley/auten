@@ -10,7 +10,6 @@
 //! https://en.wikipedia.org/wiki/C_data_types#Main_types
 //!
 #![allow(non_snake_case, dead_code, unused_variables, unused_imports)]
-use std::fmt;
 use std::fs::File;
 use std::io::prelude::*;
 
