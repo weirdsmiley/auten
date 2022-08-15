@@ -43,7 +43,7 @@ fn dump_testRemainedRules(test_file: &mut File) {
 
     let tmp = BinarySymExpr::new(&cond, &amodbl50, &Opcode::Mul);
     // FIXME: From trait implementation for u32
-    // println!("BSE = tmp\n{}", tmp.dump(None));
+    println!("BSE = tmp\n{}", tmp.dump(None));
 
     let T1 = Test::new(&cond, &amodbl50);
     test_file.write_fmt(format_args!("{}", T1)).unwrap();

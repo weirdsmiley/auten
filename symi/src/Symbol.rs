@@ -84,18 +84,12 @@ impl Draw for Sym {
 }
 
 // TODO: Idiomatic way: Supertrait for collecting all integer types
-impl From<Sym> for u32 {
-    fn from(s: Sym) -> Self {
-        // format!("{ws}{}\n", self, ws = " ".repeat(tabl.unwrap_or(0)));
-        format!("{} {}", s.ty, s.name);
-        0
+impl Draw for u32 {
+    fn dump(&self, tabl: Option<usize>) -> String {
+        format!("{ws}{}\n", self, ws = " ".repeat(tabl.unwrap_or(0)))
     }
 
-    // fn dump(&self, tabl: Option<usize>) -> String {
-    //     format!("{ws}{}\n", self, ws = " ".repeat(tabl.unwrap_or(0)))
-    // }
-
-    // fn declare(&self) -> String {
-    //     format!("{} {}", self, self)
-    // }
+    fn declare(&self) -> String {
+        format!("{} {}", self, self)
+    }
 }
