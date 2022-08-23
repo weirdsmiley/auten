@@ -16,8 +16,8 @@ use std::io::prelude::*;
 use symi::BinOp::Opcode;
 use symi::DataType::CDataTypes;
 use symi::Draw::Draw;
-use symi::Expr::BinarySymExpr;
-use symi::Symbol::Sym;
+use symi::Expr::{BinarySymExpr, ChainedBSE};
+use symi::Symbol::{Conc, Sym};
 use symi::Test::Test;
 
 mod utils;
@@ -29,21 +29,23 @@ fn dump_testRemainedRules(test_file: &mut File) {
     let b = Sym::new("b", "unsigned int");
     let c = Sym::new("c", "int");
     let d = Sym::new("d", "int");
+    let conc30 = Conc::new(30, &CDataTypes::Int);
+    let conc50 = Conc::new(50, &CDataTypes::Int);
     let fn_name = "bar";
 
     fn_header(test_file, fn_name, &[&a, &b, &c, &d]);
 
-    let cond1 = BinarySymExpr::new(&a, &30, &Opcode::LE);
-    let cond2 = BinarySymExpr::new(&b, &50, &Opcode::LE);
+    let cond1 = BinarySymExpr::new(&a, &conc30, &Opcode::LE);
+    let cond2 = BinarySymExpr::new(&b, &conc50, &Opcode::LE);
     let amodb = BinarySymExpr::new(&a, &b, &Opcode::Rem);
     let bmoda = BinarySymExpr::new(&b, &a, &Opcode::Rem);
     let cond = BinarySymExpr::new(&cond1, &cond2, &Opcode::LAnd);
-    let amodbl50 = BinarySymExpr::new(&amodb, &50, &Opcode::LT);
-    let bmodal30 = BinarySymExpr::new(&bmoda, &30, &Opcode::LT);
+    let amodbl50 = BinarySymExpr::new(&amodb, &conc50, &Opcode::LT);
+    let bmodal30 = BinarySymExpr::new(&bmoda, &conc30, &Opcode::LT);
 
     let tmp = BinarySymExpr::new(&cond, &amodbl50, &Opcode::Mul);
     // FIXME: From trait implementation for u32
-    println!("BSE = tmp\n{}", tmp.dump(None));
+    // println!("BSE = tmp\n{}", tmp.dump(None));
 
     let T1 = Test::new(&cond, &amodbl50);
     test_file.write_fmt(format_args!("{}", T1)).unwrap();
@@ -63,7 +65,7 @@ fn dump_all_corner_tests(test_file: &mut File, S1: &Sym, S2: &Sym, Op: &Opcode) 
     let BSE4 = BinarySymExpr::new(&BSE, &BSE2, &Opcode::LOr);
     let BSE5 = BinarySymExpr::new(&BSE3, &BSE4, &Opcode::Xor);
 
-    // println!("{}", BSE5.dump());
+    // println!("{}", BSE5.dump(None));
 
     // Logic
     // -----
@@ -75,8 +77,49 @@ fn dump_all_corner_tests(test_file: &mut File, S1: &Sym, S2: &Sym, Op: &Opcode) 
     // t1 ∈ [INT_MIN, INT_MAX]
     // t2 ∈ [0, UINT_MAX]
 
-    let test = Test::new(&BSE3, &BSE);
-    test_file.write_fmt(format_args!("{}", test)).unwrap();
+    if S1.ty == S2.ty {
+        // All possible test cases
+        // <---|------------------------|--------------------|--->
+        //    T_MIN                   T_MID                T_MAX
+        //
+        // For (T_MIN, T_MAX):
+        //   1. Non overlapping        : [1,2] and [3,4]
+        //   2. Partially overlapping  : [1,3] and [2,4]
+        //   3. Completely overlapping : [1,3] and [1,3]
+        // For overflows  : ...same three cases
+        // For underflows : ...same three cases
+        let (T_MIN, T_MAX) = S1.ty.getRange();
+        let T_MID = (T_MIN >> 1) + (T_MAX >> 1) + (((T_MIN & 1) + (T_MAX & 1)) >> 1);
+
+        let (T_MID_LL, T_MID_LR) = (Conc::new(T_MID - 3, &S1.ty), Conc::new(T_MID - 1, &S1.ty));
+        let (T_MID_RL, T_MID_RR) = (Conc::new(T_MID + 1, &S1.ty), Conc::new(T_MID + 3, &S1.ty));
+
+        let C1 = BinarySymExpr::new(S1, &T_MID_LL, &Opcode::GE);
+        let C2 = BinarySymExpr::new(S1, &T_MID_LR, &Opcode::LE);
+        let C3 = BinarySymExpr::new(S2, &T_MID_RL, &Opcode::GE);
+        let C4 = BinarySymExpr::new(S2, &T_MID_RR, &Opcode::LE);
+        // FIXME: Unimplemented Draw for i64 (only u32)
+
+        let T_MID_L = Conc::new(T_MID - 3, &S1.ty);
+        let T_MID_R = Conc::new(T_MID + 3, &S1.ty);
+
+        let LHS = BinarySymExpr::new(S1, &T_MID_L, &Opcode::LE);
+        let RHS = BinarySymExpr::new(S2, &T_MID_R, &Opcode::GE);
+
+        // let ThisConditional = ChainedBSE::new(&[&C1, &C2, &C3, &C4], Op).join();
+
+        let ThisConditional = BinarySymExpr::new(&LHS, &RHS, &Opcode::LAnd);
+        let ThisAssert = BinarySymExpr::new(S1, S2, Op);
+        let ThisTest = Test::new(&ThisConditional, &ThisAssert);
+        test_file.write_fmt(format_args!("{}", ThisTest)).unwrap();
+    } else if S1.ty < S2.ty {
+        // println!("{} < {}", S1.declare(), S2.declare());
+    } else {
+        // println!("{} > {}", S1.declare(), S2.declare());
+    }
+
+    // let test = Test::new(&BSE3, &BSE);
+    // test_file.write_fmt(format_args!("{}", test)).unwrap();
 }
 
 /// Main driver for constructing symbols and their associated constraints and

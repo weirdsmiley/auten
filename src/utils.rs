@@ -86,7 +86,7 @@ int {}(",
             continue;
         }
         test_file
-            .write_fmt(format_args!("{}, ", sym.declare()))
+            .write_fmt(format_args!("\n\t{}, ", sym.declare()))
             .unwrap();
     }
 
