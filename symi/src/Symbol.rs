@@ -39,24 +39,7 @@ impl Sym {
     pub fn new(name: &str, dtype: &str) -> Sym {
         Sym {
             name: name.to_string(),
-            ty: match dtype {
-                "char" => CDataTypes::Char,
-                "signed char" => CDataTypes::SignedChar,
-                "unsigned char" => CDataTypes::UnsignedChar,
-                "short" => CDataTypes::Short,
-                "unsigned short" => CDataTypes::UnsignedShort,
-                "int" => CDataTypes::Int,
-                "signed int" => CDataTypes::Int,
-                "unsigned int" => CDataTypes::UnsignedInt,
-                "long" => CDataTypes::Long,
-                "unsigned long" => CDataTypes::UnsignedLong,
-                "long long" => CDataTypes::LongLong,
-                "unsigned long long" => CDataTypes::UnsignedLongLong,
-                "float" => CDataTypes::Float,
-                "double" => CDataTypes::Double,
-                "long double" => CDataTypes::LongDouble,
-                _ => CDataTypes::Char,
-            },
+            ty: CDataTypes::getType(dtype),
         }
     }
 }
@@ -81,15 +64,80 @@ impl Draw for Sym {
     fn declare(&self) -> String {
         format!("{} {}", self.ty, self.name)
     }
+
+    type OutputType = Sym;
+    fn iter(&self) -> (bool, &Self::OutputType) {
+        println!("Base: {}", self);
+        (true, self)
+    }
 }
 
-// TODO: Idiomatic way: Supertrait for collecting all integer types
-impl Draw for u32 {
+// // TODO: Idiomatic way: Supertrait for collecting all integer types
+// impl Draw for u32 {
+//     fn dump(&self, tabl: Option<usize>) -> String {
+//         format!("{ws}{}\n", self, ws = " ".repeat(tabl.unwrap_or(0)))
+//     }
+
+//     fn declare(&self) -> String {
+//         format!("{} {}", self, self)
+//     }
+
+//     type OutputType = u32;
+//     fn iter(&self) -> (bool, &Self::OutputType) {
+//         println!("Base: {}", self);
+//         (true, self)
+//     }
+// }
+
+/// A concrete symbolc type.
+pub struct Conc<'a, T> {
+    pub ty: &'a CDataTypes,
+    pub val: T,
+}
+
+impl<'a, T> Conc<'a, T> {
+    // TODO: dtype can be of CDataTypes
+    pub fn new(val: T, ty: &'a CDataTypes) -> Conc<T> {
+        Conc {
+            // ty: CDataTypes::getType(dtype),
+            val,
+            ty,
+        }
+    }
+}
+
+// TODO: Give logical operations.
+// impl<T> PartialEq for Conc<T> {
+//     fn eq(&self, other: &Self) -> bool {
+//         self.name == other.name && self.ty == other.ty
+//     }
+// }
+
+impl<'a, T> fmt::Display for Conc<'a, T>
+where
+    T: fmt::Display,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.val)
+    }
+}
+
+impl<'a, T> Draw for Conc<'a, T>
+where
+    T: fmt::Display,
+{
     fn dump(&self, tabl: Option<usize>) -> String {
-        format!("{ws}{}\n", self, ws = " ".repeat(tabl.unwrap_or(0)))
+        format!("{ws}{}\n", self.val, ws = " ".repeat(tabl.unwrap_or(0)))
     }
 
     fn declare(&self) -> String {
-        format!("{} {}", self, self)
+        // FIXME: There should not be a declare() method.
+        format!("{} {}", self.ty, self.val)
+    }
+
+    type OutputType = Conc<'a, T>;
+    fn iter(&self) -> (bool, &Self::OutputType) {
+        println!("Base: {}", self);
+        (true, self)
     }
 }

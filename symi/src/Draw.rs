@@ -20,7 +20,13 @@ pub trait Draw: fmt::Display {
     fn dump(&self, tabl: Option<usize>) -> String;
 
     /// Dump type's declaration(s) into f Formatter.
+    // FIXME: We need to move this to another trait which will not be
+    // implemented by concrete types. Because it does not make sense to have a
+    // declaration of concrete literals.
     fn declare(&self) -> String;
 
     // fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result;
+
+    type OutputType;
+    fn iter(&self) -> (bool, &Self::OutputType);
 }

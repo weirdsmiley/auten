@@ -71,4 +71,9 @@ where
     fn declare(&self) -> String {
         format!("")
     }
+
+    type OutputType = Test<'a, 'b, T1, T2, T3, T4>;
+    fn iter(&self) -> (bool, &Self::OutputType) {
+        (true, self)
+    }
 }

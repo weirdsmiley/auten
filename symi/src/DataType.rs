@@ -13,7 +13,7 @@ use std::fmt;
 // For each type i, there will be pairs with other types (constrained previously
 // types are not paired).
 // TODO: Rename to _builtin (will provide custom data type interface later)
-#[derive(PartialEq)]
+#[derive(PartialEq, PartialOrd)]
 pub enum CDataTypes {
     Char,
     SignedChar,
@@ -33,6 +33,83 @@ pub enum CDataTypes {
     Double,
     LongDouble,
 }
+
+impl CDataTypes {
+    pub fn getType(dtype: &str) -> CDataTypes {
+        return match dtype {
+            "char" => CDataTypes::Char,
+            "signed char" => CDataTypes::SignedChar,
+            "unsigned char" => CDataTypes::UnsignedChar,
+            "short" => CDataTypes::Short,
+            "unsigned short" => CDataTypes::UnsignedShort,
+            "int" => CDataTypes::Int,
+            "signed int" => CDataTypes::Int,
+            "unsigned int" => CDataTypes::UnsignedInt,
+            "long" => CDataTypes::Long,
+            "unsigned long" => CDataTypes::UnsignedLong,
+            "long long" => CDataTypes::LongLong,
+            "unsigned long long" => CDataTypes::UnsignedLongLong,
+            "float" => CDataTypes::Float,
+            "double" => CDataTypes::Double,
+            "long double" => CDataTypes::LongDouble,
+            _ => CDataTypes::Char,
+        }
+
+    }
+
+    // FIXME: We want to return tuples of various types.
+    // 1. Use Option
+    //
+    // Instead of returning builtin types, we can return Conc<T> and implement
+    // shifting operators over those types.
+    pub fn getRange(&self) -> (i64, i64) {
+        match self {
+            CDataTypes::Char => (0, u8::MAX as i64), // FIXME: Char's type is
+                                                     // dependent and we need to
+                                                     // redefine it based on
+                                                     // unsigned/signed-ness
+                                                     // Look at limits.h
+            CDataTypes::SignedChar => (i8::MIN as i64, i8::MAX as i64),
+            CDataTypes::UnsignedChar => (0, u8::MAX as i64),
+            CDataTypes::Short => (i16::MIN as i64, i16::MAX as i64),
+            CDataTypes::UnsignedShort => (u16::MIN as i64, u16::MAX as i64),
+            CDataTypes::Int => (i32::MIN as i64, i32::MAX as i64),
+            CDataTypes::UnsignedInt => (u32::MIN as i64, u32::MAX as i64),
+            _ => unreachable!(),
+        }
+    }
+}
+
+// impl PartialEq for CDataTypes {
+//     fn eq(&self, other: &Self) -> bool {
+//         self.getRange() == other.getRange()
+//     }
+
+//     fn ne(&self, other: &Self) -> bool {
+//         self.getRange() != other.getRange()
+//     }
+// }
+
+// TODO: Can we simply implement a method in impl
+// pub trait Range {
+//     fn getRange(&self) -> (i64, i64);
+//     // fn getMax(&self) -> Option<(T,T)>;
+// }
+
+// impl Range for CDataTypes {
+//     fn getRange(&self) -> (i64, i64) {
+//         match self {
+//             CDataTypes::Char => (0, u8::MAX as i64),
+//             CDataTypes::Int => (i32::MIN as i64, i32::MAX as i64),
+//             CDataTypes::Short => (u16::MIN as i64, u16::MAX as i64),
+//             CDataTypes::SignedChar => (0, 0),
+//             CDataTypes::UnsignedChar => (0, 0),
+//             CDataTypes::UnsignedInt => (0, 0),
+//             CDataTypes::UnsignedShort => (0, 0),
+//             _ => (u32::MIN as i64, u32::MAX as i64)
+//         }
+//     }
+// }
 
 impl fmt::Display for CDataTypes {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
