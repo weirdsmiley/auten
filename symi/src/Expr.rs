@@ -81,47 +81,49 @@ where
 
     type OutputType = BinarySymExpr<'a, T1, T2>;
     fn iter(&self) -> (bool, &Self::OutputType) {
-      println!("Not base");
-      let (isLHSBase, LHS) = T1::iter(&self.LHS);
-      let (isRHSBase, RHS) = T2::iter(&self.RHS);
+        #[cfg(debug_assertions)]
+        println!("BSE: {}", self);
 
-      // TODO: Do something with LHS and RHS
-      (isLHSBase && isRHSBase, self)
+        let (isLHSBase, _LHS) = T1::iter(&self.LHS);
+        let (isRHSBase, _RHS) = T2::iter(&self.RHS);
+
+        // TODO: Do something with LHS and RHS
+        (isLHSBase && isRHSBase, self)
     }
 }
 
 // A collection of BSE<T1, T2> joined by a single logical binary operator.
 pub struct ChainedBSE<'a, T1, T2> {
-  BSEs: &'a [&'a BinarySymExpr<'a, T1, T2>],
-  Op: &'a Opcode,
+    BSEs: &'a [&'a BinarySymExpr<'a, T1, T2>],
+    Op: &'a Opcode,
 }
 
 impl<'a, T1: fmt::Display, T2: fmt::Display> ChainedBSE<'a, T1, T2> {
-  // Variable number of BSEs all joined together by one binary operator.
-  pub fn new(BSEs: &'a [&'a BinarySymExpr<T1, T2>], Op: &'a Opcode) -> ChainedBSE<'a, T1, T2> {
+    // Variable number of BSEs all joined together by one binary operator.
+    pub fn new(BSEs: &'a [&'a BinarySymExpr<T1, T2>], Op: &'a Opcode) -> ChainedBSE<'a, T1, T2> {
 
-    // // Combine all BSEs in recursive manner.
-    // for idx in 0..BSEs.len() {
-    //     // Join RHS
-    //     let RecurSym = BinarySymExpr::new(BSEs[idx], BSEs[idx+1..], Op);
-    // }
+        // // Combine all BSEs in recursive manner.
+        // for idx in 0..BSEs.len() {
+        //     // Join RHS
+        //     let RecurSym = BinarySymExpr::new(BSEs[idx], BSEs[idx+1..], Op);
+        // }
 
-    ChainedBSE { BSEs, Op }
-  }
-
-  // Join all conditionals in BSEs with Op.
-  // [BSE(1 <= s), BSE(s <= 3)].join = BSE((1 <= s) && (s <= 3))
-  pub fn join(&self) {
-    // TODO: This requires RecursiveIteration over BinarySymExpr to generate
-    // something like:
-    //      (((BSE1 Op BSE2) Op BSE3) Op BSE4)
-    // from a vector of BSE<Sym,Sym>(s).
-    println!("Joining is happening attention");
-    for cond in self.BSEs {
-      print!("{} ", cond);
+        ChainedBSE { BSEs, Op }
     }
-    println!("\nJoining is done");
-  }
+
+    // Join all conditionals in BSEs with Op.
+    // [BSE(1 <= s), BSE(s <= 3)].join = BSE((1 <= s) && (s <= 3))
+    pub fn join(&self) {
+        // TODO: This requires RecursiveIteration over BinarySymExpr to generate
+        // something like:
+        //      (((BSE1 Op BSE2) Op BSE3) Op BSE4)
+        // from a vector of BSE<Sym,Sym>(s).
+        println!("Joining is happening attention");
+        for cond in self.BSEs {
+            print!("{} ", cond);
+        }
+        println!("\nJoining is done");
+    }
 }
 
 impl<'a, T1, T2> fmt::Display for ChainedBSE<'a, T1, T2>
@@ -129,12 +131,12 @@ where
     T1: fmt::Display,
     T2: fmt::Display,
 {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    for BSE in self.BSEs {
-      println!("{} {} ", BSE, self.Op);
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for BSE in self.BSEs {
+            println!("{} {} ", BSE, self.Op);
+        }
+        write!(f, "( {} )", self.Op)
     }
-    write!(f, "( {} )", self.Op)
-  }
 }
 
 impl<'a, T1, T2> Draw for ChainedBSE<'a, T1, T2>
@@ -142,26 +144,26 @@ where
     T1: Draw,
     T2: Draw,
 {
-  fn dump(&self, tabl: Option<usize>) -> String {
-    let mut ret = String::new();
+    fn dump(&self, tabl: Option<usize>) -> String {
+        let mut _ret = String::new();
 
-    for BSE in self.BSEs {
-      BSE.dump(None);
-      // ret.push(!("{} {}", BSE.dump(Some(tabl.unwrap_or(0) + 4)), self.Op));
+        for BSE in self.BSEs {
+            BSE.dump(None);
+            // ret.push(!("{} {}", BSE.dump(Some(tabl.unwrap_or(0) + 4)), self.Op));
+        }
+
+        format!(
+            "{}\n",
+            format!("{ws}{}", self.Op, ws = " ".repeat(tabl.unwrap_or(0))),
+        )
     }
 
-    format!(
-      "{}\n",
-      format!("{ws}{}", self.Op, ws = " ".repeat(tabl.unwrap_or(0))),
-    )
-  }
+    fn declare(&self) -> String {
+        String::new()
+    }
 
-  fn declare(&self) -> String {
-    String::new()
-  }
-
-  type OutputType = BinarySymExpr<'a, T1, T2>;
-  fn iter(&self) -> (bool, &Self::OutputType) {
-    (true, self.BSEs[0])
-  }
+    type OutputType = BinarySymExpr<'a, T1, T2>;
+    fn iter(&self) -> (bool, &Self::OutputType) {
+        (true, self.BSEs[0])
+    }
 }

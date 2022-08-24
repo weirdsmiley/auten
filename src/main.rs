@@ -98,7 +98,6 @@ fn dump_all_corner_tests(test_file: &mut File, S1: &Sym, S2: &Sym, Op: &Opcode) 
         let C2 = BinarySymExpr::new(S1, &T_MID_LR, &Opcode::LE);
         let C3 = BinarySymExpr::new(S2, &T_MID_RL, &Opcode::GE);
         let C4 = BinarySymExpr::new(S2, &T_MID_RR, &Opcode::LE);
-        // FIXME: Unimplemented Draw for i64 (only u32)
 
         let T_MID_L = Conc::new(T_MID - 3, &S1.ty);
         let T_MID_R = Conc::new(T_MID + 3, &S1.ty);
@@ -109,13 +108,17 @@ fn dump_all_corner_tests(test_file: &mut File, S1: &Sym, S2: &Sym, Op: &Opcode) 
         // let ThisConditional = ChainedBSE::new(&[&C1, &C2, &C3, &C4], Op).join();
 
         let ThisConditional = BinarySymExpr::new(&LHS, &RHS, &Opcode::LAnd);
+        ThisConditional.iter();
+
         let ThisAssert = BinarySymExpr::new(S1, S2, Op);
         let ThisTest = Test::new(&ThisConditional, &ThisAssert);
         test_file.write_fmt(format_args!("{}", ThisTest)).unwrap();
     } else if S1.ty < S2.ty {
-        // println!("{} < {}", S1.declare(), S2.declare());
+        #[cfg(debug_assertions)]
+        println!("{} < {}", S1.declare(), S2.declare());
     } else {
-        // println!("{} > {}", S1.declare(), S2.declare());
+        #[cfg(debug_assertions)]
+        println!("{} > {}", S1.declare(), S2.declare());
     }
 
     // let test = Test::new(&BSE3, &BSE);

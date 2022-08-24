@@ -28,5 +28,6 @@ pub trait Draw: fmt::Display {
     // fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result;
 
     type OutputType;
+    /// Recursively iterate over the data type.
     fn iter(&self) -> (bool, &Self::OutputType);
 }
