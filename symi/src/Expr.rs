@@ -11,8 +11,6 @@ use std::fmt;
 // {
 // }
 
-
-
 pub struct BinarySymExpr<'a, T1, T2> {
     LHS: &'a T1,
     RHS: &'a T2,
@@ -101,7 +99,6 @@ pub struct ChainedBSE<'a, T1, T2> {
 impl<'a, T1: fmt::Display, T2: fmt::Display> ChainedBSE<'a, T1, T2> {
     // Variable number of BSEs all joined together by one binary operator.
     pub fn new(BSEs: &'a [&'a BinarySymExpr<T1, T2>], Op: &'a Opcode) -> ChainedBSE<'a, T1, T2> {
-
         // // Combine all BSEs in recursive manner.
         // for idx in 0..BSEs.len() {
         //     // Join RHS

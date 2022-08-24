@@ -53,8 +53,7 @@ impl CDataTypes {
             "double" => CDataTypes::Double,
             "long double" => CDataTypes::LongDouble,
             _ => CDataTypes::Char,
-        }
-
+        };
     }
 
     // FIXME: We want to return tuples of various types.
@@ -65,10 +64,10 @@ impl CDataTypes {
     pub fn getRange(&self) -> (i64, i64) {
         match self {
             CDataTypes::Char => (0, u8::MAX as i64), // FIXME: Char's type is
-                                                     // dependent and we need to
-                                                     // redefine it based on
-                                                     // unsigned/signed-ness
-                                                     // Look at limits.h
+            // dependent and we need to
+            // redefine it based on
+            // unsigned/signed-ness
+            // Look at limits.h
             CDataTypes::SignedChar => (i8::MIN as i64, i8::MAX as i64),
             CDataTypes::UnsignedChar => (0, u8::MAX as i64),
             CDataTypes::Short => (i16::MIN as i64, i16::MAX as i64),

@@ -60,10 +60,7 @@ impl<'a, T> Conc<'a, T> {
     // TODO: dtype can be of CDataTypes or str, similarly in other new()
     // methods.
     pub fn new(val: T, ty: &'a CDataTypes) -> Conc<T> {
-        Conc {
-            val,
-            ty,
-        }
+        Conc { val, ty }
     }
 }
 
