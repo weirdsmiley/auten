@@ -27,10 +27,10 @@ pub(crate) fn getConstraintsAround(
         let BSE2 = BinarySymExpr::new(S, &C2, &Opcode::LE);
         let BSE = BinarySymExpr::new(&BSE1, &BSE2, &Opcode::LAnd);
 
-        return None;
+        None
     } else {
         // wrap around the range
-        return None;
+        None
     }
 }
 
