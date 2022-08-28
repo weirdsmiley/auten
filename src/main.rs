@@ -11,7 +11,8 @@
 //!
 #![allow(non_snake_case, dead_code, unused_variables, unused_imports)]
 use std::fs::File;
-use std::io::prelude::*;
+use std::io::{prelude::*, stdin, stdout, Error};
+use std::process::exit;
 
 use symi::BinOp::Opcode;
 use symi::DataType::CDataTypes;
@@ -33,7 +34,7 @@ fn dump_testRemainedRules(test_file: &mut File) {
     let conc50 = Conc::new(50, &CDataTypes::Int);
     let fn_name = "bar";
 
-    fn_header(test_file, fn_name, &[&a, &b, &c, &d]);
+    test_header(test_file, fn_name, &[&a, &b, &c, &d]);
 
     let cond1 = BinarySymExpr::new(&a, &conc30, &Opcode::LE);
     let cond2 = BinarySymExpr::new(&b, &conc50, &Opcode::LE);
@@ -90,6 +91,7 @@ fn dump_all_corner_tests(test_file: &mut File, S1: &Sym, S2: &Sym, Op: &Opcode) 
         // For underflows : ...same three cases
         let (T_MIN, T_MAX) = S1.ty.getRange();
         let T_MID = (T_MIN >> 1) + (T_MAX >> 1) + (((T_MIN & 1) + (T_MAX & 1)) >> 1);
+        // let myBSE = getConstraintsAround(S1, T_MID, 3);
 
         let (T_MID_LL, T_MID_LR) = (Conc::new(T_MID - 3, &S1.ty), Conc::new(T_MID - 1, &S1.ty));
         let (T_MID_RL, T_MID_RR) = (Conc::new(T_MID + 1, &S1.ty), Conc::new(T_MID + 3, &S1.ty));
@@ -127,34 +129,26 @@ fn dump_all_corner_tests(test_file: &mut File, S1: &Sym, S2: &Sym, Op: &Opcode) 
 
 /// Main driver for constructing symbols and their associated constraints and
 /// build test cases, put them in a .c file.
-fn fuzz() -> bool {
+fn fuzz(Op: &Opcode) -> Result<(), Error> {
+    // TODO: Rename files if already exists.
     let mut test = File::create("fuzzed-tests.c").unwrap();
 
-    let mut test2 = File::create("testRemainedRules.c").unwrap();
-    dump_testRemainedRules(&mut test2);
-    cntrl_headers(&mut test2, false);
-    println!("Fuzzed tests in testRemainedRules.c");
-
-    // TODO: For generating tests crossing all types and ranges, we can use the
-    // following method of generating symbols and cross-producting with the
-    // available CDataTypes. We should also provide an API to construct symbols
-    // in bunch and these symbols go straight to function header.
-    // cntrl_headers(&mut test, true);
+    // let mut test2 = File::create("testRemainedRules.c").unwrap();
+    // dump_testRemainedRules(&mut test2);
+    // cntrl_headers(&mut test2, false);
+    // println!("Fuzzed tests in testRemainedRules.c");
 
     // Set of symbols for fuzzing. Every data type in C will declare two symbols
     // namely, *1 and *2 (* denoting the data type's initials).
     let (Symset, AvailableTypes) = set_of_syms();
-    // TODO: Either generalize fn_header or stick to something concrete!
     let RefSymset: Vec<&Sym> = Symset.iter().collect();
 
-    fn_header(&mut test, "foo", &RefSymset[..]);
+    test_header(&mut test, "foo", &RefSymset[..]);
 
-    let Op = Opcode::NE;
-
-    // Each pair with same type.
+    // Combine each pair with same type.
     for ty in &AvailableTypes {
         let (S1, S2) = search_pair_of_types(&Symset, ty, ty).unwrap();
-        dump_all_corner_tests(&mut test, S1, S2, &Op); // dump to fuzzed-tests.c
+        dump_all_corner_tests(&mut test, S1, S2, Op);
     }
 
     // Handle for pairs in moving order. First type with rest types, second type
@@ -165,22 +159,36 @@ fn fuzz() -> bool {
                 search_pair_of_types(&Symset, &AvailableTypes[ty1_id], &AvailableTypes[ty2_id])
                     .unwrap();
 
-            dump_all_corner_tests(&mut test, S1, S2, &Op);
+            dump_all_corner_tests(&mut test, S1, S2, Op);
         }
     }
 
-    cntrl_headers(&mut test, false);
+    test_footer(&mut test);
 
-    true
+    Ok(())
 }
 
 fn main() {
-    if !fuzz() {
-        eprintln!("Failed to fuzz tests. Aborting");
-        return;
-    }
+    let mut input = String::with_capacity(5);
+    loop {
+        input.clear();
+        print!("> Enter type for which to generate tests\n> ");
+        let _ = stdout().flush();
+        stdin().read_line(&mut input).expect("IO error");
 
-    println!("Fuzzed tests in fuzzed-tests.c");
+        if "q\n" == input || "quit\n" == input {
+            exit(0);
+        }
+
+        if let Some(opcode) = Opcode::getOpcode(input.as_str().strip_suffix('\n').unwrap()) {
+            match fuzz(&opcode) {
+                Ok(_) => println!("Fuzzed tests for {} operator.", opcode),
+                Err(_) => eprintln!("Failed to fuzz tests. Aborted!"),
+            }
+        } else {
+            println!("Incorrect opcode! 'quit' to exit.");
+        }
+    }
 }
 
 #[cfg(test)]

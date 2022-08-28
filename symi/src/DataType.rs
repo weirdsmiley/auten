@@ -35,24 +35,24 @@ pub enum CDataTypes {
 }
 
 impl CDataTypes {
-    pub fn getType(dtype: &str) -> CDataTypes {
+    pub fn getType(dtype: &str) -> Option<CDataTypes> {
         return match dtype {
-            "char" => CDataTypes::Char,
-            "signed char" => CDataTypes::SignedChar,
-            "unsigned char" => CDataTypes::UnsignedChar,
-            "short" => CDataTypes::Short,
-            "unsigned short" => CDataTypes::UnsignedShort,
-            "int" => CDataTypes::Int,
-            "signed int" => CDataTypes::Int,
-            "unsigned int" => CDataTypes::UnsignedInt,
-            "long" => CDataTypes::Long,
-            "unsigned long" => CDataTypes::UnsignedLong,
-            "long long" => CDataTypes::LongLong,
-            "unsigned long long" => CDataTypes::UnsignedLongLong,
-            "float" => CDataTypes::Float,
-            "double" => CDataTypes::Double,
-            "long double" => CDataTypes::LongDouble,
-            _ => CDataTypes::Char,
+            "char" => Some(CDataTypes::Char),
+            "signed char" => Some(CDataTypes::SignedChar),
+            "unsigned char" => Some(CDataTypes::UnsignedChar),
+            "short" => Some(CDataTypes::Short),
+            "unsigned short" => Some(CDataTypes::UnsignedShort),
+            "int" => Some(CDataTypes::Int),
+            "signed int" => Some(CDataTypes::Int),
+            "unsigned int" => Some(CDataTypes::UnsignedInt),
+            "long" => Some(CDataTypes::Long),
+            "unsigned long" => Some(CDataTypes::UnsignedLong),
+            "long long" => Some(CDataTypes::LongLong),
+            "unsigned long long" => Some(CDataTypes::UnsignedLongLong),
+            "float" => Some(CDataTypes::Float),
+            "double" => Some(CDataTypes::Double),
+            "long double" => Some(CDataTypes::LongDouble),
+            _ => None,
         };
     }
 

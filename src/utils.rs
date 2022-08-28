@@ -5,8 +5,34 @@ use symi::BinOp::Opcode;
 use symi::DataType::CDataTypes;
 use symi::Draw::Draw;
 use symi::Expr::BinarySymExpr;
-use symi::Symbol::Sym;
+use symi::Symbol::{Conc, Sym};
 use symi::Test::Test;
+
+type SimpleBSE<'a> = BinarySymExpr<'a, Sym, Conc<'a, i64>>;
+
+/// Construct a binary symbolic expression for symbol S, constrained from both
+/// sides of T_VAL, Away far.
+///         T_VAL - Away <= S <= T_VAL + Away
+pub(crate) fn getConstraintsAround(
+    S: &Sym,
+    T_VAL: i64,
+    Away: i64,
+) -> Option<BinarySymExpr<SimpleBSE, SimpleBSE>> {
+    let (T_MIN, T_MAX) = S.ty.getRange();
+
+    if T_MIN <= (T_VAL - Away) && (T_VAL + Away) <= T_MAX {
+        let C1 = Conc::new(T_VAL - Away, &S.ty);
+        let C2 = Conc::new(T_VAL + Away, &S.ty);
+        let BSE1 = BinarySymExpr::new(S, &C1, &Opcode::GE);
+        let BSE2 = BinarySymExpr::new(S, &C2, &Opcode::LE);
+        let BSE = BinarySymExpr::new(&BSE1, &BSE2, &Opcode::LAnd);
+
+        return None;
+    } else {
+        // wrap around the range
+        return None;
+    }
+}
 
 /// Iterate over CDataTypes and each member will have two symbol names
 /// associated with the type, (*1 and *2).
@@ -15,9 +41,9 @@ pub(crate) fn set_of_syms() -> (Vec<Sym>, Vec<CDataTypes>) {
     let mut set: Vec<Sym> = vec![];
     let mut ty: Vec<CDataTypes> = vec![];
 
-    set.push(Sym::new("ch1", "char"));
-    set.push(Sym::new("ch2", "char"));
-    ty.push(CDataTypes::Char);
+    // set.push(Sym::new("ch1", "char"));
+    // set.push(Sym::new("ch2", "char"));
+    // ty.push(CDataTypes::Char);
 
     set.push(Sym::new("sch1", "signed char"));
     set.push(Sym::new("sch2", "signed char"));
@@ -46,6 +72,8 @@ pub(crate) fn set_of_syms() -> (Vec<Sym>, Vec<CDataTypes>) {
     (set, ty)
 }
 
+/// Given a vector of symbols, find first pair of symbols for certain given
+/// types.
 pub(crate) fn search_pair_of_types<'a>(
     Symset: &'a Vec<Sym>,
     ty1: &CDataTypes,
@@ -64,7 +92,8 @@ pub(crate) fn search_pair_of_types<'a>(
     None
 }
 
-pub(crate) fn fn_header(test_file: &mut File, fn_name: &str, syms: &[&Sym]) {
+/// Main routine to dump headers for test file.
+pub(crate) fn test_header(test_file: &mut File, fn_name: &str, syms: &[&Sym]) {
     test_file
         .write_fmt(format_args!(
             "
@@ -105,31 +134,12 @@ int {}(",
 /// Dump function header and return values (if any) for the to-be tested
 /// function.
 // TODO : Redundant, replace with fn_header
-pub(crate) fn cntrl_headers(test_file: &mut File, head: bool) {
-    if head {
-        test_file
-            .write_fmt(format_args!(
-                "
-void clang_analyzer_eval(int);
-
-int foo(char ch1, char ch2,
-        signed char sch1, signed char sch2,
-        unsigned char uch1, unsigned char uch2,
-        short sh1, short sh2,
-        unsigned short ush1, unsigned short ush2,
-        int s1, int s2,
-        unsigned int u1, unsigned int u2
-        ) {{
-"
-            ))
-            .unwrap();
-    } else {
-        test_file
-            .write_fmt(format_args!(
-                "
+pub(crate) fn test_footer(test_file: &mut File) {
+    test_file
+        .write_fmt(format_args!(
+            "
   return 0;
 }}"
-            ))
-            .unwrap();
-    }
+        ))
+        .unwrap();
 }

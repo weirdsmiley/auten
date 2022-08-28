@@ -18,6 +18,7 @@ use std::fmt;
 /// }
 /// ```
 pub struct Test<'a, 'b, T1: 'a, T2: 'a, T3: 'b, T4: 'b> {
+    // TODO: We may need a WarningRange member for `expected-warning{{}}`.
     Conditional: &'a BinarySymExpr<'a, T1, T2>,
     Assertion: &'b BinarySymExpr<'b, T3, T4>, // Concrete types involved?
 }

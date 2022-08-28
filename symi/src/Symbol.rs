@@ -15,7 +15,7 @@ impl Sym {
     pub fn new(name: &str, dtype: &str) -> Sym {
         Sym {
             name: name.to_string(),
-            ty: CDataTypes::getType(dtype),
+            ty: CDataTypes::getType(dtype).unwrap_or(CDataTypes::Int),
         }
     }
 }

@@ -27,6 +27,33 @@ pub enum Opcode {
     Assign,
 }
 
+impl Opcode {
+    pub fn getOpcode(opcode: &str) -> Option<Opcode> {
+        return match opcode {
+            "*" => Some(Self::Mul),
+            "/" => Some(Self::Div),
+            "%" => Some(Self::Rem),
+            "+" => Some(Self::Add),
+            "-" => Some(Self::Sub),
+            "<<" => Some(Self::Shl),
+            ">>" => Some(Self::Shr),
+            "<" => Some(Self::LT),
+            ">" => Some(Self::GT),
+            "<=" => Some(Self::LE),
+            ">=" => Some(Self::GE),
+            "==" => Some(Self::EQ),
+            "!=" => Some(Self::NE),
+            "&" => Some(Self::And),
+            "^" => Some(Self::Xor),
+            "|" => Some(Self::Or),
+            "&&" => Some(Self::LAnd),
+            "||" => Some(Self::LOr),
+            "=" => Some(Self::Assign),
+            _ => None,
+        };
+    }
+}
+
 impl fmt::Display for Opcode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
