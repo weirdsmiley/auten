@@ -4,7 +4,7 @@
 use std::fmt;
 
 /// Binary opcodes which BinarySymExpr are allowed to take into account.
-// TODO: Rename to BinOp
+#[derive(Copy, Clone)]
 pub enum Opcode {
     Mul,
     Div,

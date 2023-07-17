@@ -3,3 +3,7 @@
 /symi/target
 /TODO.md
 /*.c
+/*.vim
+/*.out*
+/**/*.vim
+/**/Design.md

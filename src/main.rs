@@ -2,7 +2,7 @@
 //! ---------------------------------------
 //!
 //! The aim is to construct a meta-enum storing all C data types, and
-//! programmatically produce list of non-interfering test cases to be used by
+//! probabilistically produce list of non-interfering test cases to be used by
 //! the Clang Static Analyzer. These tests usually go in
 //! [constant-folding](clang/test/Analysis/constant-folding.c) file.
 //!
@@ -13,6 +13,7 @@
 use std::fs::File;
 use std::io::{prelude::*, stdin, stdout, Error};
 use std::process::exit;
+use std::sync::Arc;
 
 use symi::BinOp::Opcode;
 use symi::DataType::CDataTypes;
@@ -30,23 +31,28 @@ fn dump_testRemainedRules(test_file: &mut File) {
     let b = Sym::new("b", "unsigned int");
     let c = Sym::new("c", "int");
     let d = Sym::new("d", "int");
-    let conc30 = Conc::new(30, &CDataTypes::Int);
-    let conc50 = Conc::new(50, &CDataTypes::Int);
+    let conc30 = Conc::new(30, CDataTypes::Int);
+    let conc50 = Conc::new(50, CDataTypes::Int);
     let fn_name = "bar";
 
-    test_header(test_file, fn_name, &[&a, &b, &c, &d]);
+    let sub: Vec<Arc<Sym>> = [&a, &b, &c, &d]
+        .iter()
+        .map(|sym| Arc::clone(&sym))
+        .collect();
 
-    let cond1 = BinarySymExpr::new(&a, &conc30, &Opcode::LE);
-    let cond2 = BinarySymExpr::new(&b, &conc50, &Opcode::LE);
-    let amodb = BinarySymExpr::new(&a, &b, &Opcode::Rem);
-    let bmoda = BinarySymExpr::new(&b, &a, &Opcode::Rem);
-    let cond = BinarySymExpr::new(&cond1, &cond2, &Opcode::LAnd);
-    let amodbl50 = BinarySymExpr::new(&amodb, &conc50, &Opcode::LT);
-    let bmodal30 = BinarySymExpr::new(&bmoda, &conc30, &Opcode::LT);
+    test_header(test_file, fn_name, &sub);
 
-    let tmp = BinarySymExpr::new(&cond, &amodbl50, &Opcode::Mul);
-    // FIXME: From trait implementation for u32
-    // println!("BSE = tmp\n{}", tmp.dump(None));
+    let cond1 = BinarySymExpr::new(&a, &conc30, Opcode::LE);
+    let cond2 = BinarySymExpr::new(&b, &conc50, Opcode::LE);
+    let amodb = BinarySymExpr::new(&a, &b, Opcode::Rem);
+    let bmoda = BinarySymExpr::new(&b, &a, Opcode::Rem);
+    let cond = BinarySymExpr::new(&cond1, &cond2, Opcode::LAnd);
+    let amodbl50 = BinarySymExpr::new(&amodb, &conc50, Opcode::LT);
+    let bmodal30 = BinarySymExpr::new(&bmoda, &conc30, Opcode::LT);
+
+    let tmp = BinarySymExpr::new(&cond, &amodbl50, Opcode::Mul);
+    #[cfg(debug_assertions)]
+    println!("BSE = tmp\n{}", tmp.dump(None));
 
     let T1 = Test::new(&cond, &amodbl50);
     test_file.write_fmt(format_args!("{}", T1)).unwrap();
@@ -56,15 +62,15 @@ fn dump_testRemainedRules(test_file: &mut File) {
 /// symbols may be of different types. It should not matter in the construction
 /// of test cases. All we need to do is construct corner cases associated to
 /// these two symbols. Also, put assert expressions in the file.
-fn dump_all_corner_tests(test_file: &mut File, S1: &Sym, S2: &Sym, Op: &Opcode) {
+fn dump_all_corner_tests(test_file: &mut File, S1: &Arc<Sym>, S2: &Arc<Sym>, Op: Opcode) {
     let BSE = BinarySymExpr::new(S1, S2, Op);
     // We have the BSE, an expression for which we need to generate test cases.
     // That is, we first need to construct constraints using < family of
     // operators.
-    let BSE2 = BinarySymExpr::new(S1, S2, &Opcode::LE);
-    let BSE3 = BinarySymExpr::new(&BSE, &BSE2, &Opcode::LAnd);
-    let BSE4 = BinarySymExpr::new(&BSE, &BSE2, &Opcode::LOr);
-    let BSE5 = BinarySymExpr::new(&BSE3, &BSE4, &Opcode::Xor);
+    let BSE2 = BinarySymExpr::new(S1, S2, Opcode::LE);
+    let BSE3 = BinarySymExpr::new(&BSE, &BSE2, Opcode::LAnd);
+    let BSE4 = BinarySymExpr::new(&BSE, &BSE2, Opcode::LOr);
+    let BSE5 = BinarySymExpr::new(&BSE3, &BSE4, Opcode::Xor);
 
     // println!("{}", BSE5.dump(None));
 
@@ -78,7 +84,7 @@ fn dump_all_corner_tests(test_file: &mut File, S1: &Sym, S2: &Sym, Op: &Opcode) 
     // t1 ∈ [INT_MIN, INT_MAX]
     // t2 ∈ [0, UINT_MAX]
 
-    if S1.ty == S2.ty {
+    if S1.isa(S2.getType()) {
         // All possible test cases
         // <---|------------------------|--------------------|--->
         //    T_MIN                   T_MID                T_MAX
@@ -89,33 +95,41 @@ fn dump_all_corner_tests(test_file: &mut File, S1: &Sym, S2: &Sym, Op: &Opcode) 
         //   3. Completely overlapping : [1,3] and [1,3]
         // For overflows  : ...same three cases
         // For underflows : ...same three cases
-        let (T_MIN, T_MAX) = S1.ty.getRange();
+        let (T_MIN, T_MAX) = S1.getTypeRange();
         let T_MID = (T_MIN >> 1) + (T_MAX >> 1) + (((T_MIN & 1) + (T_MAX & 1)) >> 1);
-        // let myBSE = getConstraintsAround(S1, T_MID, 3);
 
-        let (T_MID_LL, T_MID_LR) = (Conc::new(T_MID - 3, &S1.ty), Conc::new(T_MID - 1, &S1.ty));
-        let (T_MID_RL, T_MID_RR) = (Conc::new(T_MID + 1, &S1.ty), Conc::new(T_MID + 3, &S1.ty));
+        let BSE = Sym::getConstraintsAround(S1, T_MID, 3);
+        println!("BSE = {}", BSE);
 
-        let C1 = BinarySymExpr::new(S1, &T_MID_LL, &Opcode::GE);
-        let C2 = BinarySymExpr::new(S1, &T_MID_LR, &Opcode::LE);
-        let C3 = BinarySymExpr::new(S2, &T_MID_RL, &Opcode::GE);
-        let C4 = BinarySymExpr::new(S2, &T_MID_RR, &Opcode::LE);
+        let (T_MID_LL, T_MID_LR) = (
+            Conc::new(T_MID - 3, S1.getType()),
+            Conc::new(T_MID - 1, S1.getType()),
+        );
+        let (T_MID_RL, T_MID_RR) = (
+            Conc::new(T_MID + 1, S1.getType()),
+            Conc::new(T_MID + 3, S1.getType()),
+        );
 
-        let T_MID_L = Conc::new(T_MID - 3, &S1.ty);
-        let T_MID_R = Conc::new(T_MID + 3, &S1.ty);
+        let C1 = BinarySymExpr::new(S1, &T_MID_LL, Opcode::GE);
+        let C2 = BinarySymExpr::new(S1, &T_MID_LR, Opcode::LE);
+        let C3 = BinarySymExpr::new(S2, &T_MID_RL, Opcode::GE);
+        let C4 = BinarySymExpr::new(S2, &T_MID_RR, Opcode::LE);
 
-        let LHS = BinarySymExpr::new(S1, &T_MID_L, &Opcode::LE);
-        let RHS = BinarySymExpr::new(S2, &T_MID_R, &Opcode::GE);
+        let T_MID_L = Conc::new(T_MID - 3, S1.getType());
+        let T_MID_R = Conc::new(T_MID + 3, S1.getType());
+
+        let LHS = BinarySymExpr::new(S1, &T_MID_L, Opcode::LE);
+        let RHS = BinarySymExpr::new(S2, &T_MID_R, Opcode::GE);
 
         // let ThisConditional = ChainedBSE::new(&[&C1, &C2, &C3, &C4], Op).join();
 
-        let ThisConditional = BinarySymExpr::new(&LHS, &RHS, &Opcode::LAnd);
+        let ThisConditional = BinarySymExpr::new(&LHS, &RHS, Opcode::LAnd);
         ThisConditional.iter();
 
         let ThisAssert = BinarySymExpr::new(S1, S2, Op);
         let ThisTest = Test::new(&ThisConditional, &ThisAssert);
         test_file.write_fmt(format_args!("{}", ThisTest)).unwrap();
-    } else if S1.ty < S2.ty {
+    } else if S1.getType() < S2.getType() {
         #[cfg(debug_assertions)]
         println!("{} < {}", S1.declare(), S2.declare());
     } else {
@@ -129,26 +143,25 @@ fn dump_all_corner_tests(test_file: &mut File, S1: &Sym, S2: &Sym, Op: &Opcode) 
 
 /// Main driver for constructing symbols and their associated constraints and
 /// build test cases, put them in a .c file.
-fn fuzz(Op: &Opcode) -> Result<(), Error> {
+fn fuzz(Op: Opcode) -> Result<(), Error> {
     // TODO: Rename files if already exists.
     let mut test = File::create("fuzzed-tests.c").unwrap();
 
     // let mut test2 = File::create("testRemainedRules.c").unwrap();
     // dump_testRemainedRules(&mut test2);
-    // cntrl_headers(&mut test2, false);
+    // test_footer(&mut test2);
     // println!("Fuzzed tests in testRemainedRules.c");
 
     // Set of symbols for fuzzing. Every data type in C will declare two symbols
     // namely, *1 and *2 (* denoting the data type's initials).
     let (Symset, AvailableTypes) = set_of_syms();
-    let RefSymset: Vec<&Sym> = Symset.iter().collect();
 
-    test_header(&mut test, "foo", &RefSymset[..]);
+    test_header(&mut test, "foo", &Symset[..]);
 
     // Combine each pair with same type.
-    for ty in &AvailableTypes {
-        let (S1, S2) = search_pair_of_types(&Symset, ty, ty).unwrap();
-        dump_all_corner_tests(&mut test, S1, S2, Op);
+    for ty in AvailableTypes.iter() {
+        let (S1, S2) = search_pair_of_types(&Symset, *ty, *ty).unwrap();
+        dump_all_corner_tests(&mut test, &S1, &S2, Op.clone());
     }
 
     // Handle for pairs in moving order. First type with rest types, second type
@@ -156,10 +169,10 @@ fn fuzz(Op: &Opcode) -> Result<(), Error> {
     for ty1_id in 0..AvailableTypes.len() {
         for ty2_id in ty1_id + 1..AvailableTypes.len() {
             let (S1, S2) =
-                search_pair_of_types(&Symset, &AvailableTypes[ty1_id], &AvailableTypes[ty2_id])
+                search_pair_of_types(&Symset, AvailableTypes[ty1_id], AvailableTypes[ty2_id])
                     .unwrap();
 
-            dump_all_corner_tests(&mut test, S1, S2, Op);
+            dump_all_corner_tests(&mut test, &S1, &S2, Op);
         }
     }
 
@@ -172,7 +185,7 @@ fn main() {
     let mut input = String::with_capacity(5);
     loop {
         input.clear();
-        print!("> Enter type for which to generate tests\n> ");
+        print!("> Enter binary operator for which to generate tests\n> ");
         let _ = stdout().flush();
         stdin().read_line(&mut input).expect("IO error");
 
@@ -181,7 +194,7 @@ fn main() {
         }
 
         if let Some(opcode) = Opcode::getOpcode(input.as_str().strip_suffix('\n').unwrap()) {
-            match fuzz(&opcode) {
+            match fuzz(opcode) {
                 Ok(_) => println!("Fuzzed tests for {} operator.", opcode),
                 Err(_) => eprintln!("Failed to fuzz tests. Aborted!"),
             }

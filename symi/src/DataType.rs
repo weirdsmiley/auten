@@ -13,7 +13,7 @@ use std::fmt;
 // For each type i, there will be pairs with other types (constrained previously
 // types are not paired).
 // TODO: Rename to _builtin (will provide custom data type interface later)
-#[derive(PartialEq, PartialOrd)]
+#[derive(Copy, Clone, PartialEq, PartialOrd)]
 pub enum CDataTypes {
     Char,
     SignedChar,

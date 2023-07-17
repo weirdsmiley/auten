@@ -3,6 +3,7 @@
 use crate::BinOp::Opcode;
 use crate::Draw::Draw;
 use std::fmt;
+use std::sync::Arc;
 
 // impl<'a, T1, T2> RecursiveIter for BinarySymExpr<'a, T1, T2>
 // where
@@ -11,11 +12,13 @@ use std::fmt;
 // {
 // }
 
-pub struct BinarySymExpr<'a, T1, T2> {
-    LHS: &'a T1,
-    RHS: &'a T2,
-    Op: &'a Opcode,
+pub struct BinarySymExpr<T1, T2> {
+    LHS: Arc<T1>,
+    RHS: Arc<T2>,
+    Op: Opcode,
 }
+
+// pub struct BinarySymExpr<T1, T2>(Arc<BinarySymExprInner<T1, T2>>);
 
 //      Sym     Sym           Sym     Sym  <--- constructed in heap
 //      'w'     'x'           'y'     'z'
@@ -37,23 +40,27 @@ pub struct BinarySymExpr<'a, T1, T2> {
 // Essentially, we need to box values inside the new() method, and not expect
 // that boxed values will be passed to new(). We are returning
 // BinarySymExpr<T> and not BinarySymExpr<Box<T>>.
-impl<'a, T1, T2> BinarySymExpr<'a, T1, T2> {
-    pub fn new(LHS: &'a T1, RHS: &'a T2, Op: &'a Opcode) -> BinarySymExpr<'a, T1, T2> {
-        BinarySymExpr { LHS, RHS, Op }
+impl<T1, T2> BinarySymExpr<T1, T2> {
+    pub fn new(LHS: &Arc<T1>, RHS: &Arc<T2>, Op: Opcode) -> Arc<Self> {
+        Arc::new(Self {
+            LHS: Arc::clone(LHS),
+            RHS: Arc::clone(RHS),
+            Op,
+        })
     }
 }
 
-impl<'a, T1, T2> fmt::Display for BinarySymExpr<'a, T1, T2>
+impl<T1, T2> fmt::Display for BinarySymExpr<T1, T2>
 where
     T1: fmt::Display,
     T2: fmt::Display,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "({} {} {})", *self.LHS, self.Op, *self.RHS)
+        write!(f, "({} {} {})", self.LHS, self.Op, self.RHS)
     }
 }
 
-impl<'a, T1, T2> Draw for BinarySymExpr<'a, T1, T2>
+impl<T1, T2> Draw for BinarySymExpr<T1, T2>
 where
     T1: Draw,
     T2: Draw,
@@ -77,7 +84,7 @@ where
         format!("")
     }
 
-    type OutputType = BinarySymExpr<'a, T1, T2>;
+    type OutputType = BinarySymExpr<T1, T2>;
     fn iter(&self) -> (bool, &Self::OutputType) {
         #[cfg(debug_assertions)]
         println!("BSE: {}", self);
@@ -90,22 +97,28 @@ where
     }
 }
 
-// A collection of BSE<T1, T2> joined by a single logical binary operator.
+/// A collection of BSE<T1, T2> joined by a single logical binary operator.
+///
+/// # Examples
+///
+/// ```text
+///
+/// ```
 pub struct ChainedBSE<'a, T1, T2> {
-    BSEs: &'a [&'a BinarySymExpr<'a, T1, T2>],
-    Op: &'a Opcode,
+    Op: Opcode,
+    BSEs: &'a [BinarySymExpr<T1, T2>],
 }
 
 impl<'a, T1: fmt::Display, T2: fmt::Display> ChainedBSE<'a, T1, T2> {
     // Variable number of BSEs all joined together by one binary operator.
-    pub fn new(BSEs: &'a [&'a BinarySymExpr<T1, T2>], Op: &'a Opcode) -> ChainedBSE<'a, T1, T2> {
+    pub fn new(BSEs: &'a [BinarySymExpr<T1, T2>], Op: Opcode) -> ChainedBSE<'a, T1, T2> {
         // // Combine all BSEs in recursive manner.
         // for idx in 0..BSEs.len() {
         //     // Join RHS
         //     let RecurSym = BinarySymExpr::new(BSEs[idx], BSEs[idx+1..], Op);
         // }
 
-        ChainedBSE { BSEs, Op }
+        ChainedBSE { Op, BSEs }
     }
 
     // Join all conditionals in BSEs with Op.
@@ -159,8 +172,8 @@ where
         String::new()
     }
 
-    type OutputType = BinarySymExpr<'a, T1, T2>;
+    type OutputType = BinarySymExpr<T1, T2>;
     fn iter(&self) -> (bool, &Self::OutputType) {
-        (true, self.BSEs[0])
+        (true, &self.BSEs[0])
     }
 }
